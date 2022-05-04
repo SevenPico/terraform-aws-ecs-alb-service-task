@@ -3,6 +3,24 @@ variable "vpc_id" {
   description = "The VPC ID where resources are created"
 }
 
+variable "task_label_attributes" {
+  type = list(string)
+  description = "Attributes for the Label Context for Task resources."
+  default = ["task"]
+}
+
+variable "service_label_attributes" {
+  type = list(string)
+  description = "Attributes for the Label Context for Service resources."
+  default = ["service"]
+}
+
+variable "exec_label_attributes" {
+  type = list(string)
+  description = "Attributes for the Label Context for Exec resources."
+  default = ["exec"]
+}
+
 variable "ecs_cluster_arn" {
   type        = string
   description = "The ARN of the ECS cluster where service will be provisioned"
