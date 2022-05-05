@@ -312,11 +312,22 @@ resource "aws_security_group_rule" "allow_icmp_ingress" {
 }
 
 resource "aws_security_group_rule" "alb" {
-  count                    = local.create_security_group && var.use_alb_security_group ? 1 : 0
+  count                    = local.create_security_group && var.use_alb_security_group  && length(var.ecs_load_balancers) <= 0 ? 1 : 0
   description              = "Allow inbound traffic from ALB"
   type                     = "ingress"
   from_port                = var.container_port
   to_port                  = var.container_port
+  protocol                 = "tcp"
+  source_security_group_id = var.alb_security_group
+  security_group_id        = join("", aws_security_group.ecs_service.*.id)
+}
+
+resource "aws_security_group_rule" "alb_target_groups" {
+  count                    = local.create_security_group && var.use_alb_security_group ? length(var.ecs_load_balancers) : 0
+  description              = "Allow inbound traffic from ALB"
+  type                     = "ingress"
+  from_port                = var.ecs_load_balancers[count.index].container_port
+  to_port                  = var.ecs_load_balancers[count.index].container_port
   protocol                 = "tcp"
   source_security_group_id = var.alb_security_group
   security_group_id        = join("", aws_security_group.ecs_service.*.id)
