@@ -297,7 +297,15 @@ variable "efs_volumes" {
     }))
   }))
 
-  description = "Task EFS volume definitions as list of configuration objects. You cannot define both Docker volumes and EFS volumes on the same task definition."
+  description = "Task EFS volume definitions as list of configuration objects. You can define multiple EFS volumes on the same task definition, but a single volume can only have one `efs_volume_configuration`."
+  default     = []
+}
+
+variable "bind_mount_volumes" {
+  type = list(any)
+  #  host_path = optional(string)
+  #  name      = string
+  description = "Task bind mount volume definitions as list of configuration objects. You can define multiple bind mount volumes on the same task definition. Requires `name` and optionally `host_path`"
   default     = []
 }
 
@@ -314,7 +322,25 @@ variable "docker_volumes" {
     }))
   }))
 
-  description = "Task docker volume definitions as list of configuration objects. You cannot define both Docker volumes and EFS volumes on the same task definition."
+  description = "Task docker volume definitions as list of configuration objects. You can define multiple Docker volumes on the same task definition, but a single volume can only have one `docker_volume_configuration`."
+  default     = []
+}
+
+variable "fsx_volumes" {
+  type = list(object({
+    host_path = string
+    name      = string
+    fsx_windows_file_server_volume_configuration = list(object({
+      file_system_id = string
+      root_directory = string
+      authorization_config = list(object({
+        credentials_parameter = string
+        domain                = string
+      }))
+    }))
+  }))
+
+  description = "Task FSx volume definitions as list of configuration objects. You can define multiple FSx volumes on the same task definition, but a single volume can only have one `fsx_windows_file_server_volume_configuration`."
   default     = []
 }
 
@@ -421,13 +447,13 @@ variable "exec_enabled" {
 
 variable "circuit_breaker_deployment_enabled" {
   type        = bool
-  description = "If `true`, enable the deployment circuit breaker logic for the service"
+  description = "If `true`, enable the deployment circuit breaker logic for the service. If using `CODE_DEPLOY` for `deployment_controller_type`, this value will be ignored"
   default     = false
 }
 
 variable "circuit_breaker_rollback_enabled" {
   type        = bool
-  description = "If `true`, Amazon ECS will roll back the service if a service deployment fails"
+  description = "If `true`, Amazon ECS will roll back the service if a service deployment fails. If using `CODE_DEPLOY` for `deployment_controller_type`, this value will be ignored"
   default     = false
 }
 
@@ -443,7 +469,13 @@ variable "ephemeral_storage_size" {
 }
 
 variable "role_tags_enabled" {
-  type        = string
-  description = "Enable/disable tags on ECS roles"
+  type        = bool
+  description = "Whether or not to create tags on ECS roles"
+  default     = true
+}
+
+variable "ecs_service_enabled" {
+  type        = bool
+  description = "Whether or not to create the aws_ecs_service resource"
   default     = true
 }

@@ -1,44 +1,45 @@
 locals {
-  enabled                 = module.this.enabled
+  enabled                 = module.context.enabled
+  ecs_service_enabled     = local.enabled && var.ecs_service_enabled
   task_role_arn           = try(var.task_role_arn[0], tostring(var.task_role_arn), "")
   create_task_role        = local.enabled && length(var.task_role_arn) == 0
   task_exec_role_arn      = try(var.task_exec_role_arn[0], tostring(var.task_exec_role_arn), "")
   create_exec_role        = local.enabled && length(var.task_exec_role_arn) == 0
-  enable_ecs_service_role = module.this.enabled && var.network_mode != "awsvpc" && length(var.ecs_load_balancers) >= 1
+  enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc" && length(var.ecs_load_balancers) >= 1
   create_security_group   = local.enabled && var.network_mode == "awsvpc" && var.security_group_enabled
 
-  volumes = concat(var.docker_volumes, var.efs_volumes)
+  volumes = concat(var.docker_volumes, var.efs_volumes, var.fsx_volumes, var.bind_mount_volumes)
 }
 
 module "task_label" {
-  source     = "cloudposse/label/null"
-  version    = "0.25.0"
+  source     = "SevenPico/context/null"
+  version    = "2.0.0"
   enabled    = local.create_task_role
   attributes = var.task_label_attributes
 
-  context = module.this.context
+  context = module.context.self
 }
 
 module "service_label" {
-  source     = "cloudposse/label/null"
-  version    = "0.25.0"
+  source     = "SevenPico/context/null"
+  version    = "2.0.0"
   attributes = var.service_label_attributes
 
-  context = module.this.context
+  context = module.context.self
 }
 
 module "exec_label" {
-  source     = "cloudposse/label/null"
-  version    = "0.25.0"
+  source     = "SevenPico/context/null"
+  version    = "2.0.0"
   enabled    = local.create_exec_role
   attributes = var.exec_label_attributes
 
-  context = module.this.context
+  context = module.context.self
 }
 
 resource "aws_ecs_task_definition" "default" {
   count                    = local.enabled && var.task_definition == null ? 1 : 0
-  family                   = module.this.id
+  family                   = module.context.id
   container_definitions    = var.container_definition_json
   requires_compatibilities = [var.launch_type]
   network_mode             = var.network_mode
@@ -112,10 +113,25 @@ resource "aws_ecs_task_definition" "default" {
           }
         }
       }
+
+      dynamic "fsx_windows_file_server_volume_configuration" {
+        for_each = lookup(volume.value, "fsx_windows_file_server_volume_configuration", [])
+        content {
+          file_system_id = lookup(fsx_windows_file_server_volume_configuration.value, "file_system_id", null)
+          root_directory = lookup(fsx_windows_file_server_volume_configuration.value, "root_directory", null)
+          dynamic "authorization_config" {
+            for_each = lookup(fsx_windows_file_server_volume_configuration.value, "authorization_config", [])
+            content {
+              credentials_parameter = lookup(authorization_config.value, "credentials_parameter", null)
+              domain                = lookup(authorization_config.value, "domain", null)
+            }
+          }
+        }
+      }
     }
   }
 
-  tags = var.use_old_arn ? null : module.this.tags
+  tags = var.use_old_arn ? null : module.context.tags
 }
 
 # IAM
@@ -143,8 +159,8 @@ resource "aws_iam_role" "ecs_task" {
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_task" {
-  count      = local.create_task_role ? length(var.task_policy_arns) : 0
-  policy_arn = var.task_policy_arns[count.index]
+  for_each   = local.create_task_role ? toset(var.task_policy_arns) : toset([])
+  policy_arn = each.value
   role       = join("", aws_iam_role.ecs_task.*.id)
 }
 
@@ -263,15 +279,15 @@ data "aws_iam_policy_document" "ecs_exec" {
 }
 
 resource "aws_iam_role_policy" "ecs_exec" {
-  count  = local.create_exec_role ? 1 : 0
-  name   = module.exec_label.id
-  policy = join("", data.aws_iam_policy_document.ecs_exec.*.json)
-  role   = join("", aws_iam_role.ecs_exec.*.id)
+  for_each = local.create_exec_role ? toset(["true"]) : toset([])
+  name     = module.exec_label.id
+  policy   = join("", data.aws_iam_policy_document.ecs_exec.*.json)
+  role     = join("", aws_iam_role.ecs_exec.*.id)
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_exec" {
-  count      = local.create_exec_role ? length(var.task_exec_policy_arns) : 0
-  policy_arn = var.task_exec_policy_arns[count.index]
+  for_each   = local.create_exec_role ? toset(var.task_exec_policy_arns) : toset([])
+  policy_arn = each.value
   role       = join("", aws_iam_role.ecs_exec.*.id)
 }
 
@@ -345,8 +361,8 @@ resource "aws_security_group_rule" "nlb" {
 }
 
 resource "aws_ecs_service" "ignore_changes_task_definition" {
-  count                              = local.enabled && var.ignore_changes_task_definition && !var.ignore_changes_desired_count ? 1 : 0
-  name                               = module.this.id
+  count                              = local.ecs_service_enabled && var.ignore_changes_task_definition && ! var.ignore_changes_desired_count ? 1 : 0
+  name                               = module.context.id
   task_definition                    = coalesce(var.task_definition, "${join("", aws_ecs_task_definition.default.*.family)}:${join("", aws_ecs_task_definition.default.*.revision)}")
   desired_count                      = var.desired_count
   deployment_maximum_percent         = var.deployment_maximum_percent
@@ -408,7 +424,7 @@ resource "aws_ecs_service" "ignore_changes_task_definition" {
 
   cluster        = var.ecs_cluster_arn
   propagate_tags = var.propagate_tags
-  tags           = var.use_old_arn ? null : module.this.tags
+  tags           = var.use_old_arn ? null : module.context.tags
 
   deployment_controller {
     type = var.deployment_controller_type
@@ -424,9 +440,12 @@ resource "aws_ecs_service" "ignore_changes_task_definition" {
     }
   }
 
-  deployment_circuit_breaker {
-    enable   = var.circuit_breaker_deployment_enabled
-    rollback = var.circuit_breaker_rollback_enabled
+  dynamic "deployment_circuit_breaker" {
+    for_each = var.deployment_controller_type == "ECS" ? ["true"] : []
+    content {
+      enable   = var.circuit_breaker_deployment_enabled
+      rollback = var.circuit_breaker_rollback_enabled
+    }
   }
 
   lifecycle {
@@ -435,8 +454,8 @@ resource "aws_ecs_service" "ignore_changes_task_definition" {
 }
 
 resource "aws_ecs_service" "ignore_changes_task_definition_and_desired_count" {
-  count                              = local.enabled && var.ignore_changes_task_definition && var.ignore_changes_desired_count ? 1 : 0
-  name                               = module.this.id
+  count                              = local.ecs_service_enabled && var.ignore_changes_task_definition && var.ignore_changes_desired_count ? 1 : 0
+  name                               = module.context.id
   task_definition                    = coalesce(var.task_definition, "${join("", aws_ecs_task_definition.default.*.family)}:${join("", aws_ecs_task_definition.default.*.revision)}")
   desired_count                      = var.desired_count
   deployment_maximum_percent         = var.deployment_maximum_percent
@@ -498,7 +517,7 @@ resource "aws_ecs_service" "ignore_changes_task_definition_and_desired_count" {
 
   cluster        = var.ecs_cluster_arn
   propagate_tags = var.propagate_tags
-  tags           = var.use_old_arn ? null : module.this.tags
+  tags           = var.use_old_arn ? null : module.context.tags
 
   deployment_controller {
     type = var.deployment_controller_type
@@ -514,9 +533,12 @@ resource "aws_ecs_service" "ignore_changes_task_definition_and_desired_count" {
     }
   }
 
-  deployment_circuit_breaker {
-    enable   = var.circuit_breaker_deployment_enabled
-    rollback = var.circuit_breaker_rollback_enabled
+  dynamic "deployment_circuit_breaker" {
+    for_each = var.deployment_controller_type == "ECS" ? ["true"] : []
+    content {
+      enable   = var.circuit_breaker_deployment_enabled
+      rollback = var.circuit_breaker_rollback_enabled
+    }
   }
 
   lifecycle {
@@ -525,8 +547,8 @@ resource "aws_ecs_service" "ignore_changes_task_definition_and_desired_count" {
 }
 
 resource "aws_ecs_service" "ignore_changes_desired_count" {
-  count                              = local.enabled && !var.ignore_changes_task_definition && var.ignore_changes_desired_count ? 1 : 0
-  name                               = module.this.id
+  count                              = local.ecs_service_enabled && ! var.ignore_changes_task_definition && var.ignore_changes_desired_count ? 1 : 0
+  name                               = module.context.id
   task_definition                    = coalesce(var.task_definition, "${join("", aws_ecs_task_definition.default.*.family)}:${join("", aws_ecs_task_definition.default.*.revision)}")
   desired_count                      = var.desired_count
   deployment_maximum_percent         = var.deployment_maximum_percent
@@ -588,7 +610,7 @@ resource "aws_ecs_service" "ignore_changes_desired_count" {
 
   cluster        = var.ecs_cluster_arn
   propagate_tags = var.propagate_tags
-  tags           = var.use_old_arn ? null : module.this.tags
+  tags           = var.use_old_arn ? null : module.context.tags
 
   deployment_controller {
     type = var.deployment_controller_type
@@ -604,9 +626,12 @@ resource "aws_ecs_service" "ignore_changes_desired_count" {
     }
   }
 
-  deployment_circuit_breaker {
-    enable   = var.circuit_breaker_deployment_enabled
-    rollback = var.circuit_breaker_rollback_enabled
+  dynamic "deployment_circuit_breaker" {
+    for_each = var.deployment_controller_type == "ECS" ? ["true"] : []
+    content {
+      enable   = var.circuit_breaker_deployment_enabled
+      rollback = var.circuit_breaker_rollback_enabled
+    }
   }
 
   lifecycle {
@@ -615,8 +640,8 @@ resource "aws_ecs_service" "ignore_changes_desired_count" {
 }
 
 resource "aws_ecs_service" "default" {
-  count                              = local.enabled && !var.ignore_changes_task_definition && !var.ignore_changes_desired_count ? 1 : 0
-  name                               = module.this.id
+  count                              = local.ecs_service_enabled && ! var.ignore_changes_task_definition && ! var.ignore_changes_desired_count ? 1 : 0
+  name                               = module.context.id
   task_definition                    = coalesce(var.task_definition, "${join("", aws_ecs_task_definition.default.*.family)}:${join("", aws_ecs_task_definition.default.*.revision)}")
   desired_count                      = var.desired_count
   deployment_maximum_percent         = var.deployment_maximum_percent
@@ -678,7 +703,7 @@ resource "aws_ecs_service" "default" {
 
   cluster        = var.ecs_cluster_arn
   propagate_tags = var.propagate_tags
-  tags           = var.use_old_arn ? null : module.this.tags
+  tags           = var.use_old_arn ? null : module.context.tags
 
   deployment_controller {
     type = var.deployment_controller_type
@@ -694,8 +719,11 @@ resource "aws_ecs_service" "default" {
     }
   }
 
-  deployment_circuit_breaker {
-    enable   = var.circuit_breaker_deployment_enabled
-    rollback = var.circuit_breaker_rollback_enabled
+  dynamic "deployment_circuit_breaker" {
+    for_each = var.deployment_controller_type == "ECS" ? ["true"] : []
+    content {
+      enable   = var.circuit_breaker_deployment_enabled
+      rollback = var.circuit_breaker_rollback_enabled
+    }
   }
 }
