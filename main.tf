@@ -262,7 +262,7 @@ resource "aws_iam_role" "ecs_exec" {
 
 data "aws_iam_policy_document" "ecs_exec" {
   count = local.create_exec_role ? 1 : 0
-
+  source_policy_documents = var.task_exec_policy_arns
   statement {
     effect    = "Allow"
     resources = ["*"]
@@ -288,8 +288,9 @@ resource "aws_iam_role_policy" "ecs_exec" {
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_exec" {
-  for_each   = local.create_exec_role ? local.task_exec_role_arn_map : {}
-  policy_arn = each.key
+  for_each   = local.create_exec_role ? toset(var.task_exec_policy_arns) : toset([])
+  policy_arn = each.value
+
   role       = join("", aws_iam_role.ecs_exec.*.id)
 }
 
