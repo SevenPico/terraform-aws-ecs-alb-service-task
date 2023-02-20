@@ -262,7 +262,7 @@ resource "aws_iam_role" "ecs_exec" {
 
 data "aws_iam_policy_document" "ecs_exec" {
   count = local.create_exec_role ? 1 : 0
-  source_policy_documents = var.task_exec_policy_arns
+
   statement {
     effect    = "Allow"
     resources = ["*"]
