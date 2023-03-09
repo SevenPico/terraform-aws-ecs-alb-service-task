@@ -289,7 +289,7 @@ resource "aws_iam_role_policy" "ecs_exec" {
 
 resource "aws_iam_role_policy_attachment" "ecs_exec" {
   #for_each   = local.create_exec_role ? toset(var.task_exec_policy_arns) : toset([])
-  count = local.create_exec_role ? toset(var.task_exec_policy_arns) : toset([])
+  count = local.create_exec_role ? 1 : 0
   policy_arn = count.index
 
   role       = join("", aws_iam_role.ecs_exec.*.id)
