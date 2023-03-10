@@ -289,10 +289,14 @@ resource "aws_iam_role_policy" "ecs_exec" {
 
 resource "aws_iam_role_policy_attachment" "ecs_exec" {
   #for_each   = local.create_exec_role ? toset(var.task_exec_policy_arns) : toset([])
-  count = local.create_exec_role ? 1 : 0
-  #policy_arn = count.index
-  policy_arn = join("", var.task_exec_policy_arns)
-  role       = join("", aws_iam_role.ecs_exec.*.id)
+  #policy_arn = each.value
+  
+  #count = local.create_exec_role ? 1 : 0
+  #policy_arn = join("", var.task_exec_policy_arns)
+
+  count        = local.create_exec_role ? length(var.task_exec_policy_arns) : 0
+  policy_arn   = local.create_exec_role ? var.task_exec_policy_arns[count.index] : null
+  role         = join("", aws_iam_role.ecs_exec.*.id)
 }
 
 # Service
