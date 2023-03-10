@@ -211,10 +211,26 @@ variable "task_exec_role_arn" {
   default     = []
 }
 
+#variable "task_exec_policy_arns" {
+#  type        = list(string)
+#  description = "A list of IAM Policy ARNs to attach to the generated task execution role."
+#  default     = []
+#}
+
+# Converting to Map so that we can avoid the Count Issue on Intial creation
 variable "task_exec_policy_arns" {
-  type        = list(string)
-  description = "A list of IAM Policy ARNs to attach to the generated task execution role."
-  default     = []
+  type        = map(string)
+  description = <<EOF
+A Map of named IAM Policy ARNs to attach to the generated task execution role.  The names will be ignored, as the
+map data structure is soley for the purpose of static declaration at the time of script invocation.
+
+Example:
+{
+  policy-1: arn:xxx:yyy:foobar
+  policy-2: arn.zzz.yyy:bizbaz
+}
+EOF
+  default     = {}
 }
 
 variable "task_role_arn" {

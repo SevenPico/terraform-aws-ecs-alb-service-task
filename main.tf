@@ -5,8 +5,7 @@ locals {
   create_task_role        = local.enabled && length(var.task_role_arn) == 0
   task_exec_role_arn      = try(var.task_exec_role_arn[0], tostring(var.task_exec_role_arn), "")
 
-  task_exec_role_arn_map = {for i in var.task_exec_role_arn : i => i}  //workaround for TF count issue on creation
-  create_exec_role        = local.enabled && length(local.task_exec_role_arn_map) == 0
+  create_exec_role        = local.enabled && length(local.task_exec_role_arn) == 0
   enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc" && length(var.ecs_load_balancers) >= 1
   create_security_group   = local.enabled && var.network_mode == "awsvpc" && var.security_group_enabled
 
@@ -288,7 +287,7 @@ resource "aws_iam_role_policy" "ecs_exec" {
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_exec" {
-  for_each   = local.create_exec_role ? toset(var.task_exec_policy_arns) : toset([])
+  for_each   = local.create_exec_role ? var.task_exec_policy_arns : {}
   policy_arn = each.value
 
   role       = join("", aws_iam_role.ecs_exec.*.id)
