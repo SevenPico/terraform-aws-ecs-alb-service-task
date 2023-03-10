@@ -333,7 +333,7 @@ resource "aws_security_group_rule" "allow_icmp_ingress" {
 
 resource "aws_security_group_rule" "alb" {
 #DLR Have to use Keys function to keep the count calculable at run time length function blows up
-  count                    = local.create_security_group && var.use_alb_security_group  && keys(var.ecs_load_balancers) <= 0 ? 1 : 0
+  count                    = local.create_security_group && var.use_alb_security_group  && keys(var.ecs_load_balancers) == [] ? 1 : 0
   description              = "Allow inbound traffic from ALB"
   type                     = "ingress"
   from_port                = var.container_port
