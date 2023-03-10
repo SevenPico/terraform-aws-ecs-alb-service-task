@@ -189,7 +189,8 @@ resource "aws_iam_role" "ecs_service" {
 }
 
 data "aws_iam_policy_document" "ecs_service_policy" {
-  count = local.enable_ecs_service_role && var.service_role_arn == null ? 1 : 0
+#DLR  count = local.enable_ecs_service_role && var.service_role_arn == null ? 1 : 0
+  count = local.enable_ecs_service_role  ? 1 : 0
 
   statement {
     effect    = "Allow"
@@ -330,7 +331,8 @@ resource "aws_security_group_rule" "allow_icmp_ingress" {
 }
 
 resource "aws_security_group_rule" "alb" {
-  count                    = local.create_security_group && var.use_alb_security_group  && length(var.ecs_load_balancers) <= 0 ? 1 : 0
+#DLR  count                    = local.create_security_group && var.use_alb_security_group  && length(var.ecs_load_balancers) <= 0 ? 1 : 0
+  count                    = local.create_security_group && var.use_alb_security_group ? 1 : 0
   description              = "Allow inbound traffic from ALB"
   type                     = "ingress"
   from_port                = var.container_port
