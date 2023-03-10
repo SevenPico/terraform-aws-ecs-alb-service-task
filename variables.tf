@@ -277,10 +277,25 @@ variable "task_role_arn" {
   default     = []
 }
 
+#variable "task_policy_arns" {
+#  type        = list(string)
+#  description = "A list of IAM Policy ARNs to attach to the generated task role."
+#  default     = []
+#}
+
 variable "task_policy_arns" {
-  type        = list(string)
-  description = "A list of IAM Policy ARNs to attach to the generated task role."
-  default     = []
+  type        = map(string)
+description = <<EOF
+A Map of named IAM Policy ARNs to attach to the generated task role.  The names will be ignored, as the
+map data structure is soley for the purpose of static declaration at the time of script invocation.
+
+Example:
+{
+  policy-1: arn:xxx:yyy:foobar
+  policy-2: arn.zzz.yyy:bizbaz
+}
+EOF
+default     = {}
 }
 
 variable "service_role_arn" {

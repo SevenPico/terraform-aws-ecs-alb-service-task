@@ -7,7 +7,7 @@ locals {
 
   create_exec_role        = local.enabled && length(local.task_exec_role_arn) == 0
   #DLR
-  enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc" && keys(var.ecs_load_balancers) != []
+  enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc" && length(keys(var.ecs_load_balancers)) > 0
   create_security_group   = local.enabled && var.network_mode == "awsvpc" && var.security_group_enabled
 
   volumes = concat(var.docker_volumes, var.efs_volumes, var.fsx_volumes, var.bind_mount_volumes)
@@ -161,7 +161,7 @@ resource "aws_iam_role" "ecs_task" {
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_task" {
-  for_each   = local.create_task_role ? toset(var.task_policy_arns) : toset([])
+  for_each   = local.create_task_role ? var.task_policy_arns : {}
   policy_arn = each.value
   role       = join("", aws_iam_role.ecs_task.*.id)
 }
@@ -332,7 +332,7 @@ resource "aws_security_group_rule" "allow_icmp_ingress" {
 
 resource "aws_security_group_rule" "alb" {
 #DLR
-  count                    = local.create_security_group && var.use_alb_security_group  && keys(var.ecs_load_balancers) == [] ? 1 : 0
+  count                    = local.create_security_group && var.use_alb_security_group  && length(keys(var.ecs_load_balancers)) <= 0 ? 1 : 0
   description              = "Allow inbound traffic from ALB"
   type                     = "ingress"
   from_port                = var.container_port
