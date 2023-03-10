@@ -6,7 +6,8 @@ locals {
   task_exec_role_arn  = try(var.task_exec_role_arn[0], tostring(var.task_exec_role_arn), "")
 
   create_exec_role        = local.enabled && length(local.task_exec_role_arn) == 0
-#DLR  enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc" && length(var.ecs_load_balancers) >= 1
+  #DLR
+  enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc" && keys(var.ecs_load_balancers) != []
   enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc"
   create_security_group   = local.enabled && var.network_mode == "awsvpc" && var.security_group_enabled
 
@@ -331,8 +332,8 @@ resource "aws_security_group_rule" "allow_icmp_ingress" {
 }
 
 resource "aws_security_group_rule" "alb" {
-#DLR  count                    = local.create_security_group && var.use_alb_security_group  && length(var.ecs_load_balancers) <= 0 ? 1 : 0
-  count                    = local.create_security_group && var.use_alb_security_group ? 1 : 0
+#DLR
+  count                    = local.create_security_group && var.use_alb_security_group  && keys(var.ecs_load_balancers) == [] ? 1 : 0
   description              = "Allow inbound traffic from ALB"
   type                     = "ingress"
   from_port                = var.container_port
