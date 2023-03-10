@@ -6,7 +6,8 @@ locals {
   task_exec_role_arn  = try(var.task_exec_role_arn[0], tostring(var.task_exec_role_arn), "")
 
   create_exec_role        = local.enabled && length(local.task_exec_role_arn) == 0
-  enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc" && length(var.ecs_load_balancers) >= 1
+#DLR  enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc" && length(var.ecs_load_balancers) >= 1
+  enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc"
   create_security_group   = local.enabled && var.network_mode == "awsvpc" && var.security_group_enabled
 
   volumes = concat(var.docker_volumes, var.efs_volumes, var.fsx_volumes, var.bind_mount_volumes)
@@ -181,8 +182,7 @@ data "aws_iam_policy_document" "ecs_service" {
 }
 
 resource "aws_iam_role" "ecs_service" {
-#DLR  count                = local.enable_ecs_service_role && var.service_role_arn == null ? 1 : 0
-  count                = var.service_role_arn == null ? 1 : 0
+  count                = local.enable_ecs_service_role && var.service_role_arn == null ? 1 : 0
   name                 = module.service_label.id
   assume_role_policy   = join("", data.aws_iam_policy_document.ecs_service.*.json)
   permissions_boundary = var.permissions_boundary == "" ? null : var.permissions_boundary
@@ -190,8 +190,7 @@ resource "aws_iam_role" "ecs_service" {
 }
 
 data "aws_iam_policy_document" "ecs_service_policy" {
-  #DLR    count = local.enable_ecs_service_role && var.service_role_arn == null ? 1 : 0
-  count = var.service_role_arn == null  ? 1 : 0
+  count = local.enable_ecs_service_role && var.service_role_arn == null ? 1 : 0
 
   statement {
     effect    = "Allow"
