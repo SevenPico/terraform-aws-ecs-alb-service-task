@@ -1,9 +1,9 @@
 locals {
-  enabled                 = module.context.enabled
-  ecs_service_enabled     = local.enabled && var.ecs_service_enabled
-  task_role_arn           = try(var.task_role_arn[0], tostring(var.task_role_arn), "")
-  create_task_role        = local.enabled && length(var.task_role_arn) == 0
-  task_exec_role_arn      = try(var.task_exec_role_arn[0], tostring(var.task_exec_role_arn), "")
+  enabled             = module.context.enabled
+  ecs_service_enabled = local.enabled && var.ecs_service_enabled
+  task_role_arn       = try(var.task_role_arn[0], tostring(var.task_role_arn), "")
+  create_task_role    = local.enabled && length(var.task_role_arn) == 0
+  task_exec_role_arn  = try(var.task_exec_role_arn[0], tostring(var.task_exec_role_arn), "")
 
   create_exec_role        = local.enabled && length(local.task_exec_role_arn) == 0
   enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc" && length(var.ecs_load_balancers) >= 1
@@ -290,7 +290,7 @@ resource "aws_iam_role_policy_attachment" "ecs_exec" {
   for_each   = local.create_exec_role ? var.task_exec_policy_arns : {}
   policy_arn = each.value
 
-  role       = join("", aws_iam_role.ecs_exec.*.id)
+  role = join("", aws_iam_role.ecs_exec.*.id)
 }
 
 # Service
@@ -341,11 +341,11 @@ resource "aws_security_group_rule" "alb" {
 }
 
 resource "aws_security_group_rule" "alb_target_groups" {
-  count                    = local.create_security_group && var.use_alb_security_group ? length(var.ecs_load_balancers) : 0
+  for_each                 = local.create_security_group && var.use_alb_security_group ? var.ecs_load_balancers : {}
   description              = "Allow inbound traffic from ALB"
   type                     = "ingress"
-  from_port                = var.ecs_load_balancers[count.index].container_port
-  to_port                  = var.ecs_load_balancers[count.index].container_port
+  from_port                = each.value.container_port
+  to_port                  = each.value.container_port
   protocol                 = "tcp"
   source_security_group_id = var.alb_security_group
   security_group_id        = join("", aws_security_group.ecs_service.*.id)
@@ -363,7 +363,7 @@ resource "aws_security_group_rule" "nlb" {
 }
 
 resource "aws_ecs_service" "ignore_changes_task_definition" {
-  count                              = local.ecs_service_enabled && var.ignore_changes_task_definition && ! var.ignore_changes_desired_count ? 1 : 0
+  count                              = local.ecs_service_enabled && var.ignore_changes_task_definition && !var.ignore_changes_desired_count ? 1 : 0
   name                               = module.context.id
   task_definition                    = coalesce(var.task_definition, "${join("", aws_ecs_task_definition.default.*.family)}:${join("", aws_ecs_task_definition.default.*.revision)}")
   desired_count                      = var.desired_count
@@ -549,7 +549,7 @@ resource "aws_ecs_service" "ignore_changes_task_definition_and_desired_count" {
 }
 
 resource "aws_ecs_service" "ignore_changes_desired_count" {
-  count                              = local.ecs_service_enabled && ! var.ignore_changes_task_definition && var.ignore_changes_desired_count ? 1 : 0
+  count                              = local.ecs_service_enabled && !var.ignore_changes_task_definition && var.ignore_changes_desired_count ? 1 : 0
   name                               = module.context.id
   task_definition                    = coalesce(var.task_definition, "${join("", aws_ecs_task_definition.default.*.family)}:${join("", aws_ecs_task_definition.default.*.revision)}")
   desired_count                      = var.desired_count
@@ -642,7 +642,7 @@ resource "aws_ecs_service" "ignore_changes_desired_count" {
 }
 
 resource "aws_ecs_service" "default" {
-  count                              = local.ecs_service_enabled && ! var.ignore_changes_task_definition && ! var.ignore_changes_desired_count ? 1 : 0
+  count                              = local.ecs_service_enabled && !var.ignore_changes_task_definition && !var.ignore_changes_desired_count ? 1 : 0
   name                               = module.context.id
   task_definition                    = coalesce(var.task_definition, "${join("", aws_ecs_task_definition.default.*.family)}:${join("", aws_ecs_task_definition.default.*.revision)}")
   desired_count                      = var.desired_count
