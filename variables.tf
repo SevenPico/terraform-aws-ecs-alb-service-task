@@ -26,15 +26,44 @@ variable "ecs_cluster_arn" {
   description = "The ARN of the ECS cluster where service will be provisioned"
 }
 
+#variable "ecs_load_balancers" {
+#  type = list(object({
+#    container_name   = string
+#    container_port   = number
+#    elb_name         = string
+#    target_group_arn = string
+#  }))
+#  description = "A list of load balancer config objects for the ECS service; see [ecs_service#load_balancer](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service#load_balancer) docs"
+#  default     = []
+#}
+
 variable "ecs_load_balancers" {
-  type = list(object({
+  type = map(object({
     container_name   = string
     container_port   = number
     elb_name         = string
     target_group_arn = string
   }))
-  description = "A list of load balancer config objects for the ECS service; see [ecs_service#load_balancer](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service#load_balancer) docs"
-  default     = []
+  description = <<EOF
+A list of load balancer config objects for the ECS service; see [ecs_service#load_balancer](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ecs_service#load_balancer) docs.
+Using a Map instead of List because Count issues arise on initial creation.
+Example:
+{
+  lb-1 = {
+    container_name   = string
+    container_port   = number
+    elb_name         = string
+    target_group_arn = string
+  }
+  lb-2 = {
+    container_name   = string
+    container_port   = number
+    elb_name         = string
+    target_group_arn = string
+  }
+}
+EOF
+  default     = {}
 }
 
 variable "container_definition_json" {
@@ -211,10 +240,25 @@ variable "task_exec_role_arn" {
   default     = []
 }
 
+#variable "task_exec_policy_arns" {
+#  type        = list(string)
+#  description = "A list of IAM Policy ARNs to attach to the generated task execution role."
+#  default     = []
+#}
+
+# Converting to Map so that we can avoid the Count Issue on Intial creation
 variable "task_exec_policy_arns" {
-  type        = list(string)
-  description = "A list of IAM Policy ARNs to attach to the generated task execution role."
-  default     = []
+  type        = map(string)
+  description = <<EOF
+A Map of named IAM Policy ARNs to attach to the generated task execution role.  The names will be ignored, as the
+map data structure is soley for the purpose of static declaration at the time of script invocation.
+Example:
+{
+  policy-1: arn:xxx:yyy:foobar
+  policy-2: arn.zzz.yyy:bizbaz
+}
+EOF
+  default     = {}
 }
 
 variable "task_role_arn" {
@@ -229,10 +273,24 @@ variable "task_role_arn" {
   default     = []
 }
 
+#variable "task_policy_arns" {
+#  type        = list(string)
+#  description = "A list of IAM Policy ARNs to attach to the generated task role."
+#  default     = []
+#}
+
 variable "task_policy_arns" {
-  type        = list(string)
-  description = "A list of IAM Policy ARNs to attach to the generated task role."
-  default     = []
+  type        = map(string)
+description = <<EOF
+A Map of named IAM Policy ARNs to attach to the generated task role.  The names will be ignored, as the
+map data structure is soley for the purpose of static declaration at the time of script invocation.
+Example:
+{
+  policy-1: arn:xxx:yyy:foobar
+  policy-2: arn.zzz.yyy:bizbaz
+}
+EOF
+default     = {}
 }
 
 variable "service_role_arn" {
