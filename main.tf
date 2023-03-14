@@ -280,7 +280,7 @@ data "aws_iam_policy_document" "ecs_exec" {
     ]
   }
 }
-
+ 
 resource "aws_iam_role_policy" "ecs_exec" {
   for_each = local.create_exec_role ? toset(["true"]) : toset([])
   name     = module.exec_label.id
@@ -295,6 +295,7 @@ resource "aws_iam_role_policy_attachment" "ecs_exec" {
   role = join("", aws_iam_role.ecs_exec.*.id)
 }
 
+  
 # Service
 ## Security Groups
 resource "aws_security_group" "ecs_service" {
