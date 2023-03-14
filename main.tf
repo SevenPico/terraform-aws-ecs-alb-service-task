@@ -295,7 +295,6 @@ resource "aws_iam_role_policy_attachment" "ecs_exec" {
   role = join("", aws_iam_role.ecs_exec.*.id)
 }
 
-  
 # Service
 ## Security Groups
 resource "aws_security_group" "ecs_service" {
