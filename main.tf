@@ -196,6 +196,7 @@ data "aws_iam_policy_document" "ecs_service_policy" {
   count = local.enable_ecs_service_role && var.service_role_arn == null ? 1 : 0
 
   statement {
+    sid       = "EcsServiceDefaults"
     effect    = "Allow"
     resources = ["*"]
 
@@ -222,6 +223,7 @@ data "aws_iam_policy_document" "ecs_ssm_exec" {
   count = module.context.enabled && var.exec_enabled ? 1 : 0
 
   statement {
+    sid       = "SsmExec"
     effect    = "Allow"
     resources = ["*"]
 
@@ -268,6 +270,7 @@ data "aws_iam_policy_document" "ecs_exec" {
   source_policy_documents = var.task_exec_policy_documents
 
   statement {
+    sid       = "TaskExecDefault"
     effect    = "Allow"
     resources = ["*"]
 
