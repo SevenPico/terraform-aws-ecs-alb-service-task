@@ -1,15 +1,14 @@
 locals {
-  enabled             = module.context.enabled
-  ecs_service_enabled = local.enabled && var.ecs_service_enabled
-  task_role_arn       = try(var.task_role_arn[0], tostring(var.task_role_arn), "")
-  create_task_role    = local.enabled && length(var.task_role_arn) == 0
-  task_exec_role_arn  = try(var.task_exec_role_arn[0], tostring(var.task_exec_role_arn), "")
+  ecs_service_enabled = module.context.enabled && var.ecs_service_enabled
+  #  task_role_arn       = try(var.task_role_arn[0], tostring(var.task_role_arn), "")
+  #  create_task_role    = module.context.enabled && length(var.task_role_arn) == 0
+  #  task_exec_role_arn  = try(var.task_exec_role_arn[0], tostring(var.task_exec_role_arn), "")
 
-  create_exec_role        = local.enabled && length(local.task_exec_role_arn) == 0
+  #  create_exec_role        = module.context.enabled && length(local.task_exec_role_arn) == 0
 
   #DLR Have to use Keys function to keep the count calculable at run time length function blows up
   enable_ecs_service_role = module.context.enabled && var.network_mode != "awsvpc" && keys(var.ecs_load_balancers) != []
-  create_security_group   = local.enabled && var.network_mode == "awsvpc" && var.security_group_enabled
+  create_security_group   = module.context.enabled && var.network_mode == "awsvpc" && var.security_group_enabled
 
   volumes = concat(var.docker_volumes, var.efs_volumes, var.fsx_volumes, var.bind_mount_volumes)
 }
@@ -17,7 +16,7 @@ locals {
 module "task_label" {
   source     = "SevenPico/context/null"
   version    = "2.0.0"
-  enabled    = local.create_task_role
+  #  enabled    = local.create_task_role
   attributes = var.task_label_attributes
 
   context = module.context.self
@@ -34,22 +33,24 @@ module "service_label" {
 module "exec_label" {
   source     = "SevenPico/context/null"
   version    = "2.0.0"
-  enabled    = local.create_exec_role
+  #  enabled    = local.create_exec_role
   attributes = var.exec_label_attributes
 
   context = module.context.self
 }
 
 resource "aws_ecs_task_definition" "default" {
-  count                    = local.enabled && var.task_definition == null ? 1 : 0
+  count                    = module.context.enabled && var.task_definition == null ? 1 : 0
   family                   = module.context.id
   container_definitions    = var.container_definition_json
   requires_compatibilities = [var.launch_type]
   network_mode             = var.network_mode
   cpu                      = var.task_cpu
   memory                   = var.task_memory
-  execution_role_arn       = length(local.task_exec_role_arn) > 0 ? local.task_exec_role_arn : join("", aws_iam_role.ecs_exec.*.arn)
-  task_role_arn            = length(local.task_role_arn) > 0 ? local.task_role_arn : join("", aws_iam_role.ecs_task.*.arn)
+  #  execution_role_arn       = length(local.task_exec_role_arn) > 0 ? local.task_exec_role_arn : join("", aws_iam_role.ecs_exec.*.arn)
+  #  task_role_arn            = length(local.task_role_arn) > 0 ? local.task_role_arn : join("", aws_iam_role.ecs_task.*.arn)
+  execution_role_arn       = join("", aws_iam_role.ecs_exec.*.arn)
+  task_role_arn            = join("", aws_iam_role.ecs_task.*.arn)
 
   dynamic "proxy_configuration" {
     for_each = var.proxy_configuration == null ? [] : [var.proxy_configuration]
@@ -139,7 +140,8 @@ resource "aws_ecs_task_definition" "default" {
 
 # IAM
 data "aws_iam_policy_document" "ecs_task" {
-  count = local.create_task_role ? 1 : 0
+  count                   = module.context.enabled ? 1 : 0
+  source_policy_documents = var.task_policy_documents
 
   statement {
     effect  = "Allow"
@@ -153,23 +155,23 @@ data "aws_iam_policy_document" "ecs_task" {
 }
 
 resource "aws_iam_role" "ecs_task" {
-  count = local.create_task_role ? 1 : 0
+  count = module.context.enabled ? 1 : 0
 
   name                 = module.task_label.id
-  assume_role_policy   = join("", data.aws_iam_policy_document.ecs_task.*.json)
+  assume_role_policy   = data.aws_iam_policy_document.ecs_task[0].json
   permissions_boundary = var.permissions_boundary == "" ? null : var.permissions_boundary
   tags                 = var.role_tags_enabled ? module.task_label.tags : null
 }
-
-resource "aws_iam_role_policy_attachment" "ecs_task" {
-  for_each   = local.create_task_role ? var.task_policy_arns : {}
-  policy_arn = each.value
-  role       = join("", aws_iam_role.ecs_task.*.id)
-}
+#
+#resource "aws_iam_role_policy_attachment" "ecs_task" {
+#  for_each   = local.create_task_role ? var.task_policy_arns : {}
+#  policy_arn = each.value
+#  role       = join("", aws_iam_role.ecs_task.*.id)
+#}
 
 
 data "aws_iam_policy_document" "ecs_service" {
-  count = local.enabled ? 1 : 0
+  count = module.context.enabled ? 1 : 0
 
   statement {
     effect  = "Allow"
@@ -185,7 +187,7 @@ data "aws_iam_policy_document" "ecs_service" {
 resource "aws_iam_role" "ecs_service" {
   count                = local.enable_ecs_service_role && var.service_role_arn == null ? 1 : 0
   name                 = module.service_label.id
-  assume_role_policy   = join("", data.aws_iam_policy_document.ecs_service.*.json)
+  assume_role_policy   = data.aws_iam_policy_document.ecs_service[0].json
   permissions_boundary = var.permissions_boundary == "" ? null : var.permissions_boundary
   tags                 = var.role_tags_enabled ? module.service_label.tags : null
 }
@@ -212,12 +214,12 @@ data "aws_iam_policy_document" "ecs_service_policy" {
 resource "aws_iam_role_policy" "ecs_service" {
   count  = local.enable_ecs_service_role && var.service_role_arn == null ? 1 : 0
   name   = module.service_label.id
-  policy = join("", data.aws_iam_policy_document.ecs_service_policy.*.json)
-  role   = join("", aws_iam_role.ecs_service.*.id)
+  policy = data.aws_iam_policy_document.ecs_service_policy[0].json
+  role   = aws_iam_role.ecs_service[0].id
 }
 
 data "aws_iam_policy_document" "ecs_ssm_exec" {
-  count = local.create_task_role && var.exec_enabled ? 1 : 0
+  count = module.context.enabled && var.exec_enabled ? 1 : 0
 
   statement {
     effect    = "Allow"
@@ -233,15 +235,15 @@ data "aws_iam_policy_document" "ecs_ssm_exec" {
 }
 
 resource "aws_iam_role_policy" "ecs_ssm_exec" {
-  count  = local.create_task_role && var.exec_enabled ? 1 : 0
+  count  = module.context.enabled && var.exec_enabled ? 1 : 0
   name   = module.task_label.id
-  policy = join("", data.aws_iam_policy_document.ecs_ssm_exec.*.json)
-  role   = join("", aws_iam_role.ecs_task.*.id)
+  policy = data.aws_iam_policy_document.ecs_ssm_exec[0].json
+  role   = aws_iam_role.ecs_task[0].id
 }
 
 # IAM role that the Amazon ECS container agent and the Docker daemon can assume
 data "aws_iam_policy_document" "ecs_task_exec" {
-  count = local.create_exec_role ? 1 : 0
+  count = module.context.enabled ? 1 : 0
 
   statement {
     actions = ["sts:AssumeRole"]
@@ -254,15 +256,16 @@ data "aws_iam_policy_document" "ecs_task_exec" {
 }
 
 resource "aws_iam_role" "ecs_exec" {
-  count                = local.create_exec_role ? 1 : 0
+  count                = module.context.enabled ? 1 : 0
   name                 = module.exec_label.id
-  assume_role_policy   = join("", data.aws_iam_policy_document.ecs_task_exec.*.json)
+  assume_role_policy   = data.aws_iam_policy_document.ecs_task_exec[0].json
   permissions_boundary = var.permissions_boundary == "" ? null : var.permissions_boundary
   tags                 = var.role_tags_enabled ? module.exec_label.tags : null
 }
 
 data "aws_iam_policy_document" "ecs_exec" {
-  count = local.create_exec_role ? 1 : 0
+  count                   = module.context.enabled ? 1 : 0
+  source_policy_documents = var.task_exec_policy_documents
 
   statement {
     effect    = "Allow"
@@ -282,18 +285,18 @@ data "aws_iam_policy_document" "ecs_exec" {
 }
 
 resource "aws_iam_role_policy" "ecs_exec" {
-  for_each = local.create_exec_role ? toset(["true"]) : toset([])
-  name     = module.exec_label.id
-  policy   = join("", data.aws_iam_policy_document.ecs_exec.*.json)
-  role     = join("", aws_iam_role.ecs_exec.*.id)
+  count  = module.context.enabled ? 1 : 0
+  name   = module.exec_label.id
+  policy = data.aws_iam_policy_document.ecs_exec[0].json
+  role   = aws_iam_role.ecs_exec[0].id
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_exec" {
-  for_each   = local.create_exec_role ? var.task_exec_policy_arns : {}
-  policy_arn = each.value
-
-  role = join("", aws_iam_role.ecs_exec.*.id)
-}
+#resource "aws_iam_role_policy_attachment" "ecs_exec" {
+#  for_each   = local.create_exec_role ? var.task_exec_policy_arns : {}
+#  policy_arn = each.value
+#
+#  role = join("", aws_iam_role.ecs_exec.*.id)
+#}
 
 # Service
 ## Security Groups
@@ -332,7 +335,7 @@ resource "aws_security_group_rule" "allow_icmp_ingress" {
 }
 
 resource "aws_security_group_rule" "alb" {
-#DLR Have to use Keys function to keep the count calculable at run time length function blows up
+  #DLR Have to use Keys function to keep the count calculable at run time length function blows up
   count                    = local.create_security_group && var.use_alb_security_group  && keys(var.ecs_load_balancers) == [] ? 1 : 0
   description              = "Allow inbound traffic from ALB"
   type                     = "ingress"

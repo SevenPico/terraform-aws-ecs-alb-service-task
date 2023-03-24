@@ -4,21 +4,21 @@ variable "vpc_id" {
 }
 
 variable "task_label_attributes" {
-  type = list(string)
+  type        = list(string)
   description = "Attributes for the Label Context for Task resources."
-  default = ["task"]
+  default     = ["task"]
 }
 
 variable "service_label_attributes" {
-  type = list(string)
+  type        = list(string)
   description = "Attributes for the Label Context for Service resources."
-  default = ["service"]
+  default     = ["service"]
 }
 
 variable "exec_label_attributes" {
-  type = list(string)
+  type        = list(string)
   description = "Attributes for the Label Context for Exec resources."
-  default = ["exec"]
+  default     = ["exec"]
 }
 
 variable "ecs_cluster_arn" {
@@ -231,15 +231,25 @@ variable "task_memory" {
   default     = 512
 }
 
-variable "task_exec_role_arn" {
-  type        = any
+#variable "task_exec_role_arn" {
+#  type        = any
+#  description = <<-EOT
+#    A `list(string)` of zero or one ARNs of IAM roles that allows the
+#    ECS/Fargate agent to make calls to the ECS API on your behalf.
+#    If the list is empty, a role will be created for you.
+#    DEPRECATED: you can also pass a `string` with the ARN, but that
+#    string must be known a "plan" time.
+#    EOT
+#  default     = []
+#}
+
+variable "task_exec_policy_documents" {
+  type        = list(string)
   description = <<-EOT
-    A `list(string)` of zero or one ARNs of IAM roles that allows the
-    ECS/Fargate agent to make calls to the ECS API on your behalf.
-    If the list is empty, a role will be created for you.
-    DEPRECATED: you can also pass a `string` with the ARN, but that
-    string must be known a "plan" time.
-    EOT
+      A `list(string)` of zero IAM Policy JSON Documents that allows the
+      ECS/Fargate agent to make calls to the ECS API on your behalf.
+      If the list is empty, the default policy will be created with minimal permissions.
+      EOT
   default     = []
 }
 
@@ -250,30 +260,40 @@ variable "task_exec_role_arn" {
 #}
 
 # Converting to Map so that we can avoid the Count Issue on Intial creation
-variable "task_exec_policy_arns" {
-  type        = map(string)
-  description = <<EOF
-A Map of named IAM Policy ARNs to attach to the generated task execution role.  The names will be ignored, as the
-map data structure is soley for the purpose of static declaration at the time of script invocation.
+#variable "task_exec_policy_arns" {
+#  type        = map(string)
+#  description = <<EOF
+#A Map of named IAM Policy ARNs to attach to the generated task execution role.  The names will be ignored, as the
+#map data structure is soley for the purpose of static declaration at the time of script invocation.
+#
+#Example:
+#{
+#  policy-1: arn:xxx:yyy:foobar
+#  policy-2: arn.zzz.yyy:bizbaz
+#}
+#EOF
+#  default     = {}
+#}
 
-Example:
-{
-  policy-1: arn:xxx:yyy:foobar
-  policy-2: arn.zzz.yyy:bizbaz
-}
-EOF
-  default     = {}
-}
+#variable "task_role_arn" {
+#  type        = any
+#  description = <<-EOT
+#    A `list(string)` of zero or one ARNs of IAM roles that allows
+#    your Amazon ECS container task to make calls to other AWS services.
+#    If the list is empty, a role will be created for you.
+#    DEPRECATED: you can also pass a `string` with the ARN, but that
+#    string must be known a "plan" time.
+#    EOT
+#  default     = []
+#}
 
-variable "task_role_arn" {
-  type        = any
+variable "task_policy_documents" {
+  type        = list(string)
   description = <<-EOT
-    A `list(string)` of zero or one ARNs of IAM roles that allows
-    your Amazon ECS container task to make calls to other AWS services.
-    If the list is empty, a role will be created for you.
-    DEPRECATED: you can also pass a `string` with the ARN, but that
-    string must be known a "plan" time.
-    EOT
+      A `list(string)` of zero IAM Policy JSON Documents that allows
+      your Amazon ECS container task to make calls to other AWS services.
+      If the list is empty, the default policy will be created with minimal permissions.
+      EOT
   default     = []
 }
 
@@ -283,20 +303,20 @@ variable "task_role_arn" {
 #  default     = []
 #}
 
-variable "task_policy_arns" {
-  type        = map(string)
-description = <<EOF
-A Map of named IAM Policy ARNs to attach to the generated task role.  The names will be ignored, as the
-map data structure is soley for the purpose of static declaration at the time of script invocation.
-
-Example:
-{
-  policy-1: arn:xxx:yyy:foobar
-  policy-2: arn.zzz.yyy:bizbaz
-}
-EOF
-default     = {}
-}
+#variable "task_policy_arns" {
+#  type        = map(string)
+#description = <<EOF
+#A Map of named IAM Policy ARNs to attach to the generated task role.  The names will be ignored, as the
+#map data structure is soley for the purpose of static declaration at the time of script invocation.
+#
+#Example:
+#{
+#  policy-1: arn:xxx:yyy:foobar
+#  policy-2: arn.zzz.yyy:bizbaz
+#}
+#EOF
+#default     = {}
+#}
 
 variable "service_role_arn" {
   type        = string
@@ -346,14 +366,14 @@ variable "runtime_platform" {
 
 variable "efs_volumes" {
   type = list(object({
-    host_path = string
-    name      = string
+    host_path                = string
+    name                     = string
     efs_volume_configuration = list(object({
       file_system_id          = string
       root_directory          = string
       transit_encryption      = string
       transit_encryption_port = string
-      authorization_config = list(object({
+      authorization_config    = list(object({
         access_point_id = string
         iam             = string
       }))
@@ -365,7 +385,7 @@ variable "efs_volumes" {
 }
 
 variable "bind_mount_volumes" {
-  type = list(any)
+  type        = list(any)
   #  host_path = optional(string)
   #  name      = string
   description = "Task bind mount volume definitions as list of configuration objects. You can define multiple bind mount volumes on the same task definition. Requires `name` and optionally `host_path`"
@@ -374,8 +394,8 @@ variable "bind_mount_volumes" {
 
 variable "docker_volumes" {
   type = list(object({
-    host_path = string
-    name      = string
+    host_path                   = string
+    name                        = string
     docker_volume_configuration = list(object({
       autoprovision = bool
       driver        = string
@@ -391,11 +411,11 @@ variable "docker_volumes" {
 
 variable "fsx_volumes" {
   type = list(object({
-    host_path = string
-    name      = string
+    host_path                                    = string
+    name                                         = string
     fsx_windows_file_server_volume_configuration = list(object({
-      file_system_id = string
-      root_directory = string
+      file_system_id       = string
+      root_directory       = string
       authorization_config = list(object({
         credentials_parameter = string
         domain                = string
