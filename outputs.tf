@@ -1,14 +1,14 @@
 output "ecs_exec_role_policy_id" {
   description = "The ECS service role policy ID, in the form of `role_name:role_policy_name`"
-  value = join("", [
-    for k, v in aws_iam_role_policy.ecs_exec : v.id
+  value       = join("", [
+  for k, v in aws_iam_role_policy.ecs_exec : v.id
   ])
 }
 
 output "ecs_exec_role_policy_name" {
   description = "ECS service role name"
-  value = join("", [
-    for k, v in aws_iam_role_policy.ecs_exec : v.name
+  value       = join("", [
+  for k, v in aws_iam_role_policy.ecs_exec : v.name
   ])
 }
 
@@ -34,7 +34,8 @@ output "task_exec_role_name" {
 
 output "task_exec_role_arn" {
   description = "ECS Task exec role ARN"
-  value       = length(local.task_exec_role_arn) > 0 ? local.task_exec_role_arn : join("", aws_iam_role.ecs_exec.*.arn)
+  #  value       = length(local.task_exec_role_arn) > 0 ? local.task_exec_role_arn : join("", aws_iam_role.ecs_exec.*.arn)
+  value       = join("", aws_iam_role.ecs_exec.*.arn)
 }
 
 output "task_exec_role_id" {
@@ -49,7 +50,8 @@ output "task_role_name" {
 
 output "task_role_arn" {
   description = "ECS Task role ARN"
-  value       = length(local.task_role_arn) > 0 ? local.task_role_arn : join("", aws_iam_role.ecs_task.*.arn)
+  #  value       = length(local.task_role_arn) > 0 ? local.task_role_arn : join("", aws_iam_role.ecs_task.*.arn)
+  value       = join("", aws_iam_role.ecs_task.*.arn)
 }
 
 output "task_role_id" {
