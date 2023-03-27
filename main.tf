@@ -22,6 +22,15 @@ module "task_label" {
   context = module.context.self
 }
 
+module "task_ssm_exec_label" {
+  source     = "SevenPico/context/null"
+  version    = "2.0.0"
+  #  enabled    = local.create_task_role
+  attributes = ["ssm", "exec"]
+
+  context = module.task_label.self
+}
+
 module "service_label" {
   source     = "SevenPico/context/null"
   version    = "2.0.0"
@@ -139,9 +148,8 @@ resource "aws_ecs_task_definition" "default" {
 }
 
 # IAM
-data "aws_iam_policy_document" "ecs_task" {
+data "aws_iam_policy_document" "ecs_task_assume" {
   count                   = module.context.enabled ? 1 : 0
-  source_policy_documents = var.task_policy_documents
 
   statement {
     effect  = "Allow"
@@ -158,9 +166,21 @@ resource "aws_iam_role" "ecs_task" {
   count = module.context.enabled ? 1 : 0
 
   name                 = module.task_label.id
-  assume_role_policy   = data.aws_iam_policy_document.ecs_task[0].json
+  assume_role_policy   = data.aws_iam_policy_document.ecs_task_assume[0].json
   permissions_boundary = var.permissions_boundary == "" ? null : var.permissions_boundary
   tags                 = var.role_tags_enabled ? module.task_label.tags : null
+}
+
+data "aws_iam_policy_document" "ecs_task" {
+  count                   = module.context.enabled && length(var.task_policy_documents) > 0 ? 1 : 0
+  source_policy_documents = var.task_policy_documents
+}
+
+resource "aws_iam_role_policy" "ecs_task" {
+  count  = module.context.enabled && length(var.task_policy_documents) > 0 ? 1 : 0
+  name   = module.task_label.id
+  policy = data.aws_iam_policy_document.ecs_ssm_exec[0].json
+  role   = aws_iam_role.ecs_task[0].id
 }
 #
 #resource "aws_iam_role_policy_attachment" "ecs_task" {
@@ -238,7 +258,7 @@ data "aws_iam_policy_document" "ecs_ssm_exec" {
 
 resource "aws_iam_role_policy" "ecs_ssm_exec" {
   count  = module.context.enabled && var.exec_enabled ? 1 : 0
-  name   = module.task_label.id
+  name   = module.task_ssm_exec_label.id
   policy = data.aws_iam_policy_document.ecs_ssm_exec[0].json
   role   = aws_iam_role.ecs_task[0].id
 }
