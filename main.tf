@@ -179,16 +179,9 @@ data "aws_iam_policy_document" "ecs_task" {
 resource "aws_iam_role_policy" "ecs_task" {
   count  = module.context.enabled && length(var.task_policy_documents) > 0 ? 1 : 0
   name   = module.task_label.id
-  policy = data.aws_iam_policy_document.ecs_ssm_exec[0].json
+  policy = data.aws_iam_policy_document.ecs_task[0].json
   role   = aws_iam_role.ecs_task[0].id
 }
-#
-#resource "aws_iam_role_policy_attachment" "ecs_task" {
-#  for_each   = local.create_task_role ? var.task_policy_arns : {}
-#  policy_arn = each.value
-#  role       = join("", aws_iam_role.ecs_task.*.id)
-#}
-
 
 data "aws_iam_policy_document" "ecs_service" {
   count = module.context.enabled ? 1 : 0
