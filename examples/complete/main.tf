@@ -28,6 +28,10 @@ module "subnets" {
 resource "aws_ecs_cluster" "default" {
   name = module.this.id
   tags = module.this.tags
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
 }
 
 module "container_definition" {
