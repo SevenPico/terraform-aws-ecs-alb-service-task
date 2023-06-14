@@ -14,8 +14,8 @@ locals {
 }
 
 module "task_label" {
-  source     = "SevenPico/context/null"
-  version    = "2.0.0"
+  source  = "SevenPico/context/null"
+  version = "2.0.0"
   #  enabled    = local.create_task_role
   attributes = var.task_label_attributes
 
@@ -23,8 +23,8 @@ module "task_label" {
 }
 
 module "task_ssm_exec_label" {
-  source     = "SevenPico/context/null"
-  version    = "2.0.0"
+  source  = "SevenPico/context/null"
+  version = "2.0.0"
   #  enabled    = local.create_task_role
   attributes = ["ssm", "exec"]
 
@@ -40,8 +40,8 @@ module "service_label" {
 }
 
 module "exec_label" {
-  source     = "SevenPico/context/null"
-  version    = "2.0.0"
+  source  = "SevenPico/context/null"
+  version = "2.0.0"
   #  enabled    = local.create_exec_role
   attributes = var.exec_label_attributes
 
@@ -58,8 +58,8 @@ resource "aws_ecs_task_definition" "default" {
   memory                   = var.task_memory
   #  execution_role_arn       = length(local.task_exec_role_arn) > 0 ? local.task_exec_role_arn : join("", aws_iam_role.ecs_exec.*.arn)
   #  task_role_arn            = length(local.task_role_arn) > 0 ? local.task_role_arn : join("", aws_iam_role.ecs_task.*.arn)
-  execution_role_arn       = join("", aws_iam_role.ecs_exec.*.arn)
-  task_role_arn            = join("", aws_iam_role.ecs_task.*.arn)
+  execution_role_arn = join("", aws_iam_role.ecs_exec.*.arn)
+  task_role_arn      = join("", aws_iam_role.ecs_task.*.arn)
 
   dynamic "proxy_configuration" {
     for_each = var.proxy_configuration == null ? [] : [var.proxy_configuration]
@@ -149,7 +149,7 @@ resource "aws_ecs_task_definition" "default" {
 
 # IAM
 data "aws_iam_policy_document" "ecs_task_assume" {
-  count                   = module.context.enabled ? 1 : 0
+  count = module.context.enabled ? 1 : 0
 
   statement {
     effect  = "Allow"
@@ -359,7 +359,7 @@ resource "aws_security_group_rule" "allow_icmp_ingress" {
 
 resource "aws_security_group_rule" "alb" {
   #DLR Have to use Keys function to keep the count calculable at run time length function blows up
-  count                    = local.create_security_group && var.use_alb_security_group  && keys(var.ecs_load_balancers) == [] ? 1 : 0
+  count                    = local.create_security_group && var.use_alb_security_group && keys(var.ecs_load_balancers) == [] ? 1 : 0
   description              = "Allow inbound traffic from ALB"
   type                     = "ingress"
   from_port                = var.container_port
