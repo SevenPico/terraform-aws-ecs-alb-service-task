@@ -366,14 +366,14 @@ variable "runtime_platform" {
 
 variable "efs_volumes" {
   type = list(object({
-    host_path                = string
-    name                     = string
+    host_path = string
+    name      = string
     efs_volume_configuration = list(object({
       file_system_id          = string
       root_directory          = string
       transit_encryption      = string
       transit_encryption_port = string
-      authorization_config    = list(object({
+      authorization_config = list(object({
         access_point_id = string
         iam             = string
       }))
@@ -385,7 +385,7 @@ variable "efs_volumes" {
 }
 
 variable "bind_mount_volumes" {
-  type        = list(any)
+  type = list(any)
   #  host_path = optional(string)
   #  name      = string
   description = "Task bind mount volume definitions as list of configuration objects. You can define multiple bind mount volumes on the same task definition. Requires `name` and optionally `host_path`"
@@ -394,8 +394,8 @@ variable "bind_mount_volumes" {
 
 variable "docker_volumes" {
   type = list(object({
-    host_path                   = string
-    name                        = string
+    host_path = string
+    name      = string
     docker_volume_configuration = list(object({
       autoprovision = bool
       driver        = string
@@ -411,11 +411,11 @@ variable "docker_volumes" {
 
 variable "fsx_volumes" {
   type = list(object({
-    host_path                                    = string
-    name                                         = string
+    host_path = string
+    name      = string
     fsx_windows_file_server_volume_configuration = list(object({
-      file_system_id       = string
-      root_directory       = string
+      file_system_id = string
+      root_directory = string
       authorization_config = list(object({
         credentials_parameter = string
         domain                = string
